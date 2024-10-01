@@ -1,6 +1,5 @@
 package br.com.alura.adopet.api.service;
 
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -12,13 +11,11 @@ import br.com.alura.adopet.api.dto.ReprovacaoAdocaoDto;
 import br.com.alura.adopet.api.dto.SolicitacaoAdocaoDto;
 import br.com.alura.adopet.api.model.Adocao;
 import br.com.alura.adopet.api.model.Pet;
-import br.com.alura.adopet.api.model.StatusAdocao;
 import br.com.alura.adopet.api.model.Tutor;
 import br.com.alura.adopet.api.repository.AdocaoRepository;
 import br.com.alura.adopet.api.repository.PetRepository;
 import br.com.alura.adopet.api.repository.TutorRepository;
 import br.com.alura.adopet.api.validacoes.ValidacaoSolicitacaoAdocao;
-import br.com.alura.adopet.exception.ValidacaoException;
 
 @Service
 public class AdocaoService {
@@ -44,13 +41,9 @@ public class AdocaoService {
 
         validacoes.forEach(v -> v.validar(dto));
 
-        Adocao adocao = new Adocao();
-        adocao.setPet(pet);
-        adocao.setTutor(tutor);
-        adocao.setData(LocalDateTime.now());
-        adocao.setStatus(StatusAdocao.AGUARDANDO_AVALIACAO);
-        adocao.setMotivo(dto.motivo());
+        Adocao adocao = new Adocao(tutor, pet, dto.motivo());
         repository.save(adocao);
+
         this.emailService.enviar("adopet@email.com.br", adocao.getPet().getAbrigo().getEmail(), "Solicitação de adoção",
                 "Olá " + adocao.getPet().getAbrigo().getNome()
                         + "!\n\nUma solicitação de adoção foi registrada hoje para o pet: " + adocao.getPet().getNome()
@@ -59,7 +52,8 @@ public class AdocaoService {
 
     public void aprovar(AprovacaoAdocaoDto dto) {
         Adocao adocao = repository.getReferenceById(dto.idAdocao());
-        adocao.setStatus(StatusAdocao.APROVADO);
+        adocao.marcarComoAprovado();
+
         this.emailService.enviar("adopet@email.com.br", adocao.getTutor().getEmail(), "Adoção aprovada",
                 "Parabéns " + adocao.getTutor().getNome() + "!\n\nSua adoção do pet " + adocao.getPet().getNome()
                         + ", solicitada em "
@@ -70,8 +64,8 @@ public class AdocaoService {
 
     public void reprovar(ReprovacaoAdocaoDto dto) {
         Adocao adocao = repository.getReferenceById(dto.idAdocao());
-        adocao.setStatus(StatusAdocao.REPROVADO);
-        adocao.setJustificativaStatus(dto.justificativa());
+        adocao.marcarComoReprovado(dto.justificativa());
+
         this.emailService.enviar("adopet@email.com.br", adocao.getTutor().getEmail(), "Adoção reprovada",
                 "Olá " + adocao.getTutor().getNome() + "!\n\nInfelizmente sua adoção do pet "
                         + adocao.getPet().getNome() + ", solicitada em "
